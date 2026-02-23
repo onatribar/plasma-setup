@@ -43,20 +43,22 @@ Item {
         readonly property bool isLandscape: width >= height
 
         source: {
-            // default wallpaper background
-            const imgFile = isLandscape ? '5120x2880.png' : '1080x1920.png';
-            const lightWallpaperFolder = 'wallpapers/Next/contents/images/';
-            const darkWallpaperFolder = 'wallpapers/Next/contents/images_dark/';
+            const landscapeFile = "5120x2880.png";
+            const portraitFile  = "1440x2960.png";
 
-            const wallpaperUrl = StandardPaths.locate(
-                StandardPaths.GenericDataLocation,
-                (Prepare.PrepareUtil.usingDarkTheme ? darkWallpaperFolder : lightWallpaperFolder) + imgFile
-            );
+            const lightFolder = "wallpapers/Next/contents/images/";
+            const darkFolder  = "wallpapers/Next/contents/images_dark/";
+            const themedFolder = Prepare.PrepareUtil.usingDarkTheme ? darkFolder : lightFolder;
 
-            if (!wallpaperUrl) {
-                return StandardPaths.locate(StandardPaths.GenericDataLocation, lightWallpaperFolder + imgFile);
+            function locate(file) {
+                return StandardPaths.locate(StandardPaths.GenericDataLocation, themedFolder + file)
+                    || StandardPaths.locate(StandardPaths.GenericDataLocation, lightFolder + file);
             }
-            return wallpaperUrl;
+
+            const primary = isLandscape ? landscapeFile : portraitFile;
+            const secondary = isLandscape ? portraitFile : landscapeFile;
+
+            return locate(primary) || locate(secondary) || "";
         }
         fillMode: Image.PreserveAspectCrop
 
