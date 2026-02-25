@@ -89,78 +89,151 @@ Item {
         }
     }
 
-    ColumnLayout {
-        opacity: root.contentOpacity
-        spacing: Kirigami.Units.largeSpacing
+    // split layout decisions into narrow vs short:
+    // - isNarrow controls layout mode (desktop vs compact bottom bar)
+    // - isShort only enables scrolling / tighter spacing, & keeps desktop layout if width is fine
+    readonly property bool isNarrow: width < Kirigami.Units.gridUnit * 34
+    readonly property bool isShort:  height < Kirigami.Units.gridUnit * 22
+    readonly property bool isTight:  isNarrow || isShort
 
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Kirigami.Units.gridUnit * 4
-        anchors.rightMargin: Kirigami.Units.gridUnit * 4
+    Flickable {
+        id: flick
+        anchors.fill: parent
+        clip: true
 
-        Label {
-            Layout.fillWidth: true
+        contentWidth: width
+        contentHeight: Math.max(height, rootLayout.implicitHeight)
 
-            text: Kirigami.Settings.isMobile ? i18n("Welcome to<br/><b>Plasma Mobile</b>") : i18n("Welcome to<br/><b>Plasma Desktop</b>")
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.Wrap
+        // allow scrolling when screen is tiny in either dimension
+        interactive: root.isTight || contentHeight > height
+        boundsBehavior: Flickable.StopAtBounds
 
-            font.pointSize: 18
-            color: "white"
-        }
+        Item {
+            id: contentItem
+            width: flick.width
+            height: flick.contentHeight
 
-        Button {
-            id: button
+            ColumnLayout {
+                id: rootLayout
+                anchors.fill: parent
 
-            Layout.alignment: Qt.AlignHCenter
+                anchors.leftMargin:  root.isTight ? Kirigami.Units.gridUnit * 2 : Kirigami.Units.gridUnit * 4
+                anchors.rightMargin: root.isTight ? Kirigami.Units.gridUnit * 2 : Kirigami.Units.gridUnit * 4
+                anchors.bottomMargin: Kirigami.Units.gridUnit * 2
+                spacing: Kirigami.Units.largeSpacing
 
-            opacity: root.contentOpacity
-            text: i18n("Begin Setup")
-            icon.name: "plasma-symbolic"
+                opacity: root.contentOpacity
 
-            onClicked: {
-                backgroundImage.scale = scaleSteps;
-                contentOpacityAnim.to = 0;
-                contentOpacityAnim.restart();
-                root.requestNextPage()
+                // spacers expand only on roomy screens to keep center content centered
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: !root.isTight
+                    Layout.preferredHeight: root.isTight ? Kirigami.Units.largeSpacing : 0
+                }
+
+                ColumnLayout {
+                    id: centerBlock
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: Kirigami.Units.largeSpacing
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: Kirigami.Settings.isMobile
+                            ? i18n("Welcome to<br/><b>Plasma Mobile</b>")
+                            : i18n("Welcome to<br/><b>Plasma Desktop</b>")
+
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+
+                        font.pointSize: 18
+                        color: "white"
+                    }
+
+                    Button {
+                        id: button
+                        Layout.alignment: Qt.AlignHCenter
+
+                        opacity: root.contentOpacity
+                        text: i18n("Begin Setup")
+                        icon.name: "plasma-symbolic"
+
+                        onClicked: {
+                            backgroundImage.scale = scaleSteps;
+                            contentOpacityAnim.to = 0;
+                            contentOpacityAnim.restart();
+                            root.requestNextPage()
+                        }
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: !root.isTight
+                    Layout.preferredHeight: root.isTight ? Kirigami.Units.largeSpacing : 0
+                }
+
+                Loader {
+                    id: bottomLoader
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignBottom
+
+                    // only switch to compact bottom bar when narrow, not merely short
+                    sourceComponent: root.isNarrow ? compactBottom : desktopBottom
+                }
             }
         }
     }
 
-    ColumnLayout {
-        opacity: root.contentOpacity
-        spacing: Kirigami.Units.largeSpacing
+    // Desktop layout
+    Component {
+        id: desktopBottom
 
-        anchors {
-            left: parent.left
-            right: parent.right
-            bottom: parent.bottom
-            leftMargin: Kirigami.Units.gridUnit * 4
-            rightMargin: Kirigami.Units.gridUnit * 4
-            bottomMargin: Kirigami.Units.gridUnit * 2
-        }
+        Item {
+            implicitHeight: Math.max(poweredBy.implicitHeight, sessionMenu.implicitHeight)
 
-        Kirigami.Heading {
-            Layout.fillWidth: true
-            text: i18nc("%1 is the distro name", "Powered by<br/><b>%1</b>", InitialStartUtil.distroName)
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.Wrap
+            Kirigami.Heading {
+                id: poweredBy
+                width: parent.width
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
 
-            level: 5
-            color: "white"
+                text: i18nc("%1 is the distro name", "Powered by<br/><b>%1</b>", InitialStartUtil.distroName)
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+
+                level: 5
+                color: "white"
+            }
+
+            SessionMenu {
+                id: sessionMenu
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 
-    SessionMenu {
-        id: sessionMenu
+    // Narrow layout
+    Component {
+        id: compactBottom
 
-        anchors {
-            bottom: parent.bottom
-            right: parent.right
-            rightMargin: Kirigami.Units.gridUnit
-            bottomMargin: Kirigami.Units.gridUnit
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                text: i18nc("%1 is the distro name", "Powered by<br/><b>%1</b>", InitialStartUtil.distroName)
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+
+                level: 5
+                color: "white"
+            }
+
+            SessionMenu {
+                Layout.alignment: Qt.AlignHCenter
+            }
         }
     }
 }
-
