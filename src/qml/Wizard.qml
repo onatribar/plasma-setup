@@ -16,6 +16,10 @@ import org.kde.plasmasetup.components as PlasmaSetupComponents
 Kirigami.Page {
     id: root
 
+    // Treat very short windows as "cramped" -> stop trying to show a floating card
+    // use full-height layout and reduce wasted spacing
+    readonly property bool crampedHeight: height < Kirigami.Units.gridUnit * 24
+
     leftPadding: 0
     rightPadding: 0
     topPadding: 0
@@ -200,16 +204,21 @@ Kirigami.Page {
             color: Kirigami.Theme.backgroundColor
             clip: true
 
-            radius: Kirigami.Settings.isMobile ? 0 : Kirigami.Units.cornerRadius + 8
+            radius: (Kirigami.Settings.isMobile || root.crampedHeight) ? 0 : Kirigami.Units.cornerRadius + 8
 
             anchors {
-                fill: Kirigami.Settings.isMobile ? parent : undefined
-                topMargin: Kirigami.Settings.isMobile ? root.height * 0.3 : undefined
-                centerIn: Kirigami.Settings.isMobile ? undefined : parent
+                // On mobile or cramped height, behave like a full-height page (no floating card)
+                fill: (Kirigami.Settings.isMobile || root.crampedHeight) ? parent : undefined
+
+                // Apply the 30% push-down in normal mobile heights (not cramped)
+                topMargin: (Kirigami.Settings.isMobile && !root.crampedHeight) ? root.height * 0.3 : 0
+
+                // Only center the floating card when we're not filling the parent
+                centerIn: (Kirigami.Settings.isMobile || root.crampedHeight) ? undefined : parent
             }
 
-            width: Kirigami.Settings.isMobile ? undefined : parent.width * 0.4
-            height: Kirigami.Settings.isMobile ? undefined : parent.height * 0.7
+            width: (Kirigami.Settings.isMobile || root.crampedHeight) ? undefined : parent.width * 0.4
+            height: (Kirigami.Settings.isMobile || root.crampedHeight) ? undefined : parent.height * 0.7
 
             Behavior on height {
                 NumberAnimation {
@@ -229,11 +238,11 @@ Kirigami.Page {
                     id: stepHeading
                     opacity: 0
                     horizontalAlignment: Text.AlignHCenter
-                    font.pointSize: 18
+                    font.pointSize: root.crampedHeight ? 14 : 18
 
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: Kirigami.Units.gridUnit
+                    Layout.topMargin: root.crampedHeight ? Kirigami.Units.smallSpacing : Kirigami.Units.gridUnit
 
                     property string toText
 
@@ -278,7 +287,7 @@ Kirigami.Page {
 
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignBottom
-                    Layout.margins: Kirigami.Units.gridUnit
+                    Layout.margins: root.crampedHeight ? Kirigami.Units.smallSpacing : Kirigami.Units.gridUnit
 
                     Button {
                         Layout.alignment: Qt.AlignLeft
@@ -345,19 +354,26 @@ Kirigami.Page {
         }
 
         visible: index === 0 // the binding is broken later
-        contentItem: module?.contentItem
+        contentItem: ScrollView {
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            contentItem: item.module?.contentItem
+        }
 
         Binding {
             target: item.module
-            property: 'cardWidth'
-            value: Math.min(Kirigami.Units.gridUnit * 30, item.contentItem.width - Kirigami.Units.gridUnit * 2)
+            property: "cardWidth"
+            value: Math.min(
+                Kirigami.Units.gridUnit * 30,
+                item.width - item.leftPadding - item.rightPadding - Kirigami.Units.gridUnit * 2
+            )
         }
 
         clip: true
-        topPadding: Kirigami.Units.gridUnit
+        topPadding: root.crampedHeight ? Kirigami.Units.smallSpacing : Kirigami.Units.gridUnit
         bottomPadding: 0
-        leftPadding: Kirigami.Units.gridUnit
-        rightPadding: Kirigami.Units.gridUnit
+        leftPadding: root.crampedHeight ? Kirigami.Units.smallSpacing : Kirigami.Units.gridUnit
+        rightPadding: root.crampedHeight ? Kirigami.Units.smallSpacing : Kirigami.Units.gridUnit
 
         transform: Translate {
             x: {
